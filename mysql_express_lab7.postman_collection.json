@@ -1,0 +1,296 @@
+{
+  "info": {
+    "_postman_id": "5c5b0e34-9c9c-4b9a-9af3-111111111111",
+    "name": "MySQL Express Lab7 API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Tests for the lab7 Node.js + MySQL API (health, users, posts). Uses collection variables for base_url, test_email, user_id, post_id."
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"JSON body ok:true\", () => {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.be.an('object');",
+              "  pm.expect(json.ok).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create User",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Generate a unique email if not already set",
+              "if (!pm.collectionVariables.get('test_email')) {",
+              "  pm.collectionVariables.set('test_email', `user_${Date.now()}@example.com`);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test(\"Has id, name, email\", () => {",
+              "  pm.expect(json).to.have.property('id');",
+              "  pm.expect(json).to.have.property('name');",
+              "  pm.expect(json).to.have.property('email');",
+              "});",
+              "// Save user_id for later requests",
+              "pm.collectionVariables.set('user_id', json.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"{{test_email}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/users",
+          "host": ["{{base_url}}"],
+          "path": ["users"]
+        }
+      }
+    },
+    {
+      "name": "List Users",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/users",
+          "host": ["{{base_url}}"],
+          "path": ["users"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const arr = pm.response.json();",
+              "pm.test(\"Response is an array\", () => pm.expect(Array.isArray(arr)).to.be.true);",
+              "pm.test(\"At least one user exists\", () => pm.expect(arr.length).to.be.greaterThan(0));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Post",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Ensure we have a user_id; if not, stop with a helpful message.",
+              "if (!pm.collectionVariables.get('user_id')) {",
+              "  postman.setNextRequest(null);",
+              "  throw new Error('user_id is not set. Run \"Create User\" first.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+              "const json = pm.response.json();",
+              "pm.test(\"Has id, user_id, title\", () => {",
+              "  pm.expect(json).to.have.property('id');",
+              "  pm.expect(json).to.have.property('user_id');",
+              "  pm.expect(json).to.have.property('title');",
+              "});",
+              "// Save post_id for later",
+              "pm.collectionVariables.set('post_id', json.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"title\": \"Hello\",\n  \"body\": \"First post!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/posts",
+          "host": ["{{base_url}}"],
+          "path": ["posts"]
+        }
+      }
+    },
+    {
+      "name": "List Posts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/posts",
+          "host": ["{{base_url}}"],
+          "path": ["posts"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const arr = pm.response.json();",
+              "pm.test(\"Response is an array\", () => pm.expect(Array.isArray(arr)).to.be.true);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "List Posts (by user_id)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('user_id')) {",
+              "  postman.setNextRequest(null);",
+              "  throw new Error('user_id is not set. Run \"Create User\" first.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const arr = pm.response.json();",
+              "pm.test(\"Response is an array\", () => pm.expect(Array.isArray(arr)).to.be.true);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/posts?user_id={{user_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["posts"],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get User with Posts",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "if (!pm.collectionVariables.get('user_id')) {",
+              "  postman.setNextRequest(null);",
+              "  throw new Error('user_id is not set. Run \"Create User\" first.');",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+              "const json = pm.response.json();",
+              "pm.test(\"Has user and posts\", () => {",
+              "  pm.expect(json).to.have.property('user');",
+              "  pm.expect(json).to.have.property('posts');",
+              "  pm.expect(Array.isArray(json.posts)).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/users/{{user_id}}/posts",
+          "host": ["{{base_url}}"],
+          "path": ["users", "{{user_id}}", "posts"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "test_email",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "post_id",
+      "value": ""
+    }
+  ]
+}
